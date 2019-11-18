@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 import pandas as pd
 import os
+import glob
 
 import pyautogui
 from collections import deque
@@ -31,42 +32,17 @@ def str2bool(v):
 def clamp(n, minn, maxn):
     return max(min(maxn, n), minn)
 
+def loadVideoFiles():
+    return glob.glob('data/training/*')
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='tf-pose-estimation realtime webcam')
-    parser.add_argument('--camera', type=int, default=0)
 
-    parser.add_argument('--resize', type=str, default='0x0',
-                        help='if provided, resize images before they are processed. default=0x0, Recommends : 432x368 or 656x368 or 1312x736 ')
-    parser.add_argument('--resize-out-ratio', type=float, default=4.0,
-                        help='if provided, resize heatmaps before they are post-processed. default=1.0')
-
-    parser.add_argument('--model', type=str, default='mobilenet_v2_large',
-                        help='cmu / mobilenet_thin / mobilenet_v2_large / mobilenet_v2_small')
-    parser.add_argument('--show-process', type=bool, default=False,
-                        help='for debug purpose, if enabled, speed for inference is dropped.')
-
-    parser.add_argument('--tensorrt', type=str, default="False",
-                        help='for tensorrt process.')
-    args = parser.parse_args()
-
-    logger.debug('initialization %s : %s' % (args.model, get_graph_path(args.model)))
-    w, h = model_wh(args.resize)
-    if w > 0 and h > 0:
-        e = TfPoseEstimator(get_graph_path(args.model), target_size=(w, h), trt_bool=str2bool(args.tensorrt))
-    else:
-        e = TfPoseEstimator(get_graph_path(args.model), target_size=(432, 368), trt_bool=str2bool(args.tensorrt))
-    logger.debug('cam read+')
-    # cam = cv2.VideoCapture(args.camera)
-    filename = 'data/training/shutdown_2019-11-17-200500.webm'
+def build_data(filename):
+    global fps_time
     cam = cv2.VideoCapture(filename)
+
     ret_val, image = cam.read()
     logger.info('cam image=%dx%d' % (image.shape[1], image.shape[0]))
-
     screen_width, screen_height = pyautogui.size()
-    xq = deque(maxlen=4)
-    yq = deque(maxlen=4)
-
     action_df = pd.DataFrame()
     while True:
         ret_val, image = cam.read()
@@ -105,15 +81,50 @@ if __name__ == '__main__':
                     frame_data.append(0)
                     frame_data.append(0)
 
-        print('frame:', len(frame_data))
-        if len(frame_data)> 0:
+        # print('frame:', len(frame_data))
+        if len(frame_data) > 0:
             action_df = action_df.append([frame_data])
 
         # logger.debug('finished+')
-
     print('frame:', frame_data)
+    datafile = filename.replace('training', 'training-csv')
+    datafile = datafile+'.csv'
+    action_df.to_csv(datafile , index=None, header=None)
 
-    action_df.to_csv(filename+'.csv', index=None, header=None)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='tf-pose-estimation realtime webcam')
+    parser.add_argument('--camera', type=int, default=0)
+
+    parser.add_argument('--resize', type=str, default='0x0',
+                        help='if provided, resize images before they are processed. default=0x0, Recommends : 432x368 or 656x368 or 1312x736 ')
+    parser.add_argument('--resize-out-ratio', type=float, default=4.0,
+                        help='if provided, resize heatmaps before they are post-processed. default=1.0')
+
+    parser.add_argument('--model', type=str, default='mobilenet_v2_large',
+                        help='cmu / mobilenet_thin / mobilenet_v2_large / mobilenet_v2_small')
+    parser.add_argument('--show-process', type=bool, default=False,
+                        help='for debug purpose, if enabled, speed for inference is dropped.')
+
+    parser.add_argument('--tensorrt', type=str, default="False",
+                        help='for tensorrt process.')
+    args = parser.parse_args()
+
+    logger.debug('initialization %s : %s' % (args.model, get_graph_path(args.model)))
+    w, h = model_wh(args.resize)
+    if w > 0 and h > 0:
+        e = TfPoseEstimator(get_graph_path(args.model), target_size=(w, h), trt_bool=str2bool(args.tensorrt))
+    else:
+        e = TfPoseEstimator(get_graph_path(args.model), target_size=(432, 368), trt_bool=str2bool(args.tensorrt))
+    logger.debug('cam read+')
+    # cam = cv2.VideoCapture(args.camera)
+    # filename = 'data/training/shutdown_2019-11-17-200500.webm'
+    # filename = 'data/training/raisehandsSwitch_2019-11-17-201214.webm'
+
+    vf = loadVideoFiles()
+    for filename in vf:
+        print(filename)
+        build_data(filename)
 
     cv2.destroyAllWindows()
 
