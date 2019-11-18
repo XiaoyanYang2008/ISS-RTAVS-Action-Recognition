@@ -3,6 +3,8 @@ import numpy as np
 import sys
 import os
 import glob
+import pickle
+
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Flatten
 from tensorflow.keras.utils import to_categorical
@@ -34,7 +36,7 @@ def training():
         datastore.append([f, cls, df])
 
 
-    for j in range(30): # change to low single digits to see underfit error.
+    for j in range(50): # change to low single digits to see underfit error.
         # train 1 epoch
         datas = []
         ys = []
@@ -69,6 +71,9 @@ def training():
     print(yts)
 
     print(confusion_matrix(yts, np.argmax(preds, axis=1)))
+
+
+    pickle.dump(model, open('model.pk','wb'))
 
 
 
