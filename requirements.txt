@@ -16,3 +16,4 @@ git+https://github.com/ppwwyyxx/tensorpack.git
 git+https://github.com/ildoonet/tf-pose-estimation.git
 python3-xlib
 pyautogui
+pandas
