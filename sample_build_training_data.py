@@ -6,7 +6,6 @@ import cv2
 import numpy as np
 import pandas as pd
 import os
-import glob
 
 import pyautogui
 from collections import deque
@@ -25,71 +24,13 @@ logger.addHandler(ch)
 fps_time = 0
 
 
+
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
 
 
 def clamp(n, minn, maxn):
     return max(min(maxn, n), minn)
-
-def loadVideoFiles():
-    return glob.glob('data/training/*')
-
-
-def build_data(filename):
-    global fps_time
-    cam = cv2.VideoCapture(filename)
-
-    ret_val, image = cam.read()
-    logger.info('cam image=%dx%d' % (image.shape[1], image.shape[0]))
-    screen_width, screen_height = pyautogui.size()
-    action_df = pd.DataFrame()
-    while True:
-        ret_val, image = cam.read()
-        if not ret_val:
-            break
-
-        image = cv2.flip(image, 1)  # mirror image.
-
-        # logger.debug('image process+')
-        humans = e.inference(image, resize_to_default=(w > 0 and h > 0), upsample_size=args.resize_out_ratio)
-
-        # logger.debug('postprocess+', humans)
-        image = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
-
-        # logger.debug('show+')
-        cv2.putText(image,
-                    "FPS: %f" % (1.0 / (time.time() - fps_time)),
-                    (10, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                    (0, 255, 0), 2)
-        cv2.imshow('tf-pose-estimation result', image)
-        fps_time = time.time()
-        if cv2.waitKey(1) == 27:
-            break
-
-        frame_data = []
-        if len(humans) > 0:
-            for i in range(0, 18 + 1):
-                # print('i:', i)
-                part = humans[0].body_parts.get(i)
-                if part is not None:
-                    frame_data.append(part.x)
-                    frame_data.append(part.y)
-                    frame_data.append(part.score)
-                else:
-                    frame_data.append(0)
-                    frame_data.append(0)
-                    frame_data.append(0)
-
-        # print('frame:', len(frame_data))
-        if len(frame_data) > 0:
-            action_df = action_df.append([frame_data])
-
-        # logger.debug('finished+')
-    print('frame:', frame_data)
-    datafile = filename.replace('training', 'training-csv')
-    datafile = datafile+'.csv'
-    action_df.to_csv(datafile , index=None, header=None)
 
 
 if __name__ == '__main__':
@@ -109,7 +50,7 @@ if __name__ == '__main__':
     parser.add_argument('--tensorrt', type=str, default="False",
                         help='for tensorrt process.')
     args = parser.parse_args()
-
+    files = os.listdir('./data/training/')
     logger.debug('initialization %s : %s' % (args.model, get_graph_path(args.model)))
     w, h = model_wh(args.resize)
     if w > 0 and h > 0:
@@ -118,13 +59,63 @@ if __name__ == '__main__':
         e = TfPoseEstimator(get_graph_path(args.model), target_size=(432, 368), trt_bool=str2bool(args.tensorrt))
     logger.debug('cam read+')
     # cam = cv2.VideoCapture(args.camera)
-    # filename = 'data/training/shutdown_2019-11-17-200500.webm'
-    # filename = 'data/training/raisehandsSwitch_2019-11-17-201214.webm'
+    for file in files:
+        filename = './data/training/'+file
+        cam = cv2.VideoCapture(filename)
+        ret_val, image = cam.read()
+        logger.info('cam image=%dx%d' % (image.shape[1], image.shape[0]))
+    
+        screen_width, screen_height = pyautogui.size()
+        xq = deque(maxlen=4)
+        yq = deque(maxlen=4)
+    
+        action_df = pd.DataFrame()
+        while True:
+            ret_val, image = cam.read()
+            if not ret_val:
+                break
+    
+            image = cv2.flip(image, 1)  # mirror image.
+    
+            # logger.debug('image process+')
+            humans = e.inference(image, resize_to_default=(w > 0 and h > 0), upsample_size=args.resize_out_ratio)
+    
+            # logger.debug('postprocess+', humans)
+            image = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
+    
+            # logger.debug('show+')
+            cv2.putText(image,
+                        "FPS: %f" % (1.0 / (time.time() - fps_time)),
+                        (10, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                        (0, 255, 0), 2)
+            cv2.imshow('tf-pose-estimation result', image)
+            fps_time = time.time()
+            if cv2.waitKey(1) == 27:
+                break
+    
+            frame_data = []
+            if len(humans) > 0:
+                for i in range(0, 18 + 1):
+                    # print('i:', i)
+                    part = humans[0].body_parts.get(i)
+                    if part is not None:
+                        frame_data.append(part.x)
+                        frame_data.append(part.y)
+                        frame_data.append(part.score)
+                    else:
+                        frame_data.append(0)
+                        frame_data.append(0)
+                        frame_data.append(0)
+    
+#            print('frame:', len(frame_data))
+            if len(frame_data)> 0:
+                action_df = action_df.append([frame_data])
+    
+            # logger.debug('finished+')
 
-    vf = loadVideoFiles()
-    for filename in vf:
-        print(filename)
-        build_data(filename)
+#        print('frame:', frame_data)
+    
+        action_df.to_csv(file+'.csv', index=None, header=None)
 
     cv2.destroyAllWindows()
 
