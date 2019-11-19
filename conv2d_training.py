@@ -6,7 +6,7 @@ import glob
 import pickle
 
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Flatten
+from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, BatchNormalization
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.callbacks import ModelCheckpoint,CSVLogger
 
@@ -19,12 +19,16 @@ def training():
     sys.setrecursionlimit(40000)
     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 
-    ACTION_ROWS, ACTION_WIDTH = 5, 38  # 5, 57
+    drop_score_i = build_droplist()
+
+    ACTION_ROWS, ACTION_WIDTH = 5, 57-len(drop_score_i)  # 5, 57, drop 41
 
     print(ACTION_ROWS, ACTION_WIDTH)
     classes, _ = build_classes()
 
-    drop_score_i = [a * 3 - 1 for a in range(1, 20)]
+    # drop_score_i = [a * 3 - 1 for a in range(1, 20)]
+    # drop_i = [a for a in range(8*3, 13*3+2)]
+    # drop_i = drop_i.append(drop_score_i)
 
     model = create_model(ACTION_ROWS, ACTION_WIDTH, len(classes))
     print('len(classes):',classes)
@@ -62,7 +66,7 @@ def training():
         ys = []
         for d in datastore:
             for i in range(10):
-                data = sample_data(d[2], 20, 5)
+                data = sample_data(d[2], 10, 5)
                 # print('before delete:',data.shape)
                 data = np.delete(np.array(data), drop_score_i, axis=1)
                 data = np.reshape(data, (ACTION_ROWS, ACTION_WIDTH, 1))
@@ -105,11 +109,13 @@ def training():
 
 def create_model(IMG_HEIGHT, IMG_WIDTH, number_class):
     return Sequential([
-        Conv2D(16, 3, padding='same', activation='relu', input_shape=(IMG_HEIGHT, IMG_WIDTH, 1)),
+        Conv2D(32, 3, padding='same', activation='relu', input_shape=(IMG_HEIGHT, IMG_WIDTH, 1)),
         # MaxPooling2D(),
-        Conv2D(32, 3, padding='same', activation='relu'),
-        # MaxPooling2D(),
+        BatchNormalization(),
         Conv2D(64, 3, padding='same', activation='relu'),
+        # MaxPooling2D(),
+        BatchNormalization(),
+        Conv2D(128, 3, padding='same', activation='relu'),
         # MaxPooling2D(),
         Flatten(),
         Dense(512, activation='relu'),
@@ -170,9 +176,23 @@ def sample_data(df, rand_width, rows):
     return df.loc[rs, :].to_numpy()
 
 def test():
+    print('running test()')
     classes, classes_idx = build_classes()
     print(classes.get('Shutdown'))
-    print(classes.get(1))
+    print(classes_idx.get(1))
+
+    build_droplist()
+
+
+def build_droplist():
+    drop_score_i = [a * 3 - 1 for a in range(1, 20)]
+    drop_i = [a for a in range(8 * 3, 18 * 3+2)]
+    drop_i = drop_i + list(set(drop_score_i) - set(drop_i))
+    # drop_i.extend(drop_score_i)
+    print(len(drop_i))
+    return drop_i
+
+# def build_features():
 
 
 def main():

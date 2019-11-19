@@ -6,16 +6,20 @@ import cv2
 import numpy as np
 from collections import deque
 
-from conv2d_training import create_model, build_classes
+from conv2d_training import create_model, build_classes, build_droplist
 from sample_build_training_data import extract_action
 
 from tf_pose.estimator import TfPoseEstimator
 from tf_pose.networks import get_graph_path, model_wh
 
-ACTION_ROWS, ACTION_WIDTH = 5, 38  # 5, 57
 
 #
 classes, classes_idx = build_classes()
+# drop_score_i = [a * 3 - 1 for a in range(1, 20)]
+drop_score_i = build_droplist()
+ACTION_ROWS, ACTION_WIDTH = 5, 57-len(drop_score_i)  # 5, 57 # 38 #26=57-31
+
+
 model = create_model(ACTION_ROWS, ACTION_WIDTH, len(classes))
 model.load_weights('action_conv2d.hdf5')
 
@@ -44,7 +48,7 @@ if __name__ == '__main__':
     parser.add_argument('--resize-out-ratio', type=float, default=4.0,
                         help='if provided, resize heatmaps before they are post-processed. default=1.0')
 
-    parser.add_argument('--model', type=str, default='mobilenet_thin',
+    parser.add_argument('--model', type=str, default='mobilenet_v2_large',
                         help='cmu / mobilenet_thin / mobilenet_v2_large / mobilenet_v2_small')
     parser.add_argument('--show-process', type=bool, default=False,
                         help='for debug purpose, if enabled, speed for inference is dropped.')
@@ -60,7 +64,6 @@ if __name__ == '__main__':
     else:
         e = TfPoseEstimator(get_graph_path(args.model), target_size=(432, 368), trt_bool=str2bool(args.tensorrt))
 
-    drop_score_i = [a * 3 - 1 for a in range(1, 20)]
 
     logger.debug('cam read+')
     cam = cv2.VideoCapture(args.camera)

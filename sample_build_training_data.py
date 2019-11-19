@@ -24,7 +24,6 @@ logger.addHandler(ch)
 fps_time = 0
 
 
-
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
 
@@ -36,13 +35,25 @@ def clamp(n, minn, maxn):
 def extract_action(humans_prediction):
     frame_data = []
     if len(humans_prediction) > 0:
+
+        neck = humans_prediction[0].body_parts.get(1)
+        # ideal neck, 0.5, 0.3 <=y
+        if neck is not None:
+            x_off = neck.x - 0.5
+            y_off = neck.y - 0.3
+        else:
+            return frame_data
+
         for i in range(0, 18 + 1):
             # print('i:', i)
             part = humans_prediction[0].body_parts.get(i)
             if part is not None:
-                frame_data.append(part.x)
-                frame_data.append(part.y)
+                frame_data.append(part.x-x_off)
+                frame_data.append(part.y-y_off)
                 frame_data.append(part.score)
+                # if (i == 1):
+                    # print('neck:', part.x, ':', part.y)
+                    # ideal neck, 0.5, 0.3 <=y
             else:
                 frame_data.append(0)
                 frame_data.append(0)
@@ -79,32 +90,32 @@ if __name__ == '__main__':
     logger.debug('cam read+')
     # cam = cv2.VideoCapture(args.camera)
     for file in files:
-        filename = './data/training/'+file
+        filename = './data/training/' + file
         cam = cv2.VideoCapture(filename)
         ret_val, image = cam.read()
         logger.info('cam image=%dx%d' % (image.shape[1], image.shape[0]))
-    
+
         screen_width, screen_height = pyautogui.size()
         # xq = deque(maxlen=4)
         # yq = deque(maxlen=4)
-    
+
         action_df = pd.DataFrame()
         while True:
             ret_val, image = cam.read()
             if not ret_val:
                 break
-    
+
             image = cv2.flip(image, 1)  # mirror image.
-    
+
             # logger.debug('image process+')
             humans = e.inference(image, resize_to_default=(w > 0 and h > 0), upsample_size=args.resize_out_ratio)
-    
+
             # logger.debug('postprocess+', humans)
             image = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
-    
+
             # logger.debug('show+')
             cv2.putText(image,
-                        "FPS: %f" % (1.0 / (time.time() - fps_time)),
+                        "%s FPS: %f" % (file, 1.0 / (time.time() - fps_time)),
                         (10, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                         (0, 255, 0), 2)
             cv2.imshow('tf-pose-estimation result', image)
@@ -114,17 +125,16 @@ if __name__ == '__main__':
 
             frame_data = extract_action(humans)
 
-
             #            print('frame:', len(frame_data))
-            if len(frame_data)> 0:
+            if len(frame_data) > 0:
                 action_df = action_df.append([frame_data])
-    
+
             # logger.debug('finished+')
 
-#        print('frame:', frame_data)
+        #        print('frame:', frame_data)
         datafile = filename.replace('training', 'training-csv')
 
-        action_df.to_csv(datafile+'.csv', index=None, header=None)
+        action_df.to_csv(datafile + '.csv', index=None, header=None)
 
     cv2.destroyAllWindows()
 
