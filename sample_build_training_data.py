@@ -33,6 +33,24 @@ def clamp(n, minn, maxn):
     return max(min(maxn, n), minn)
 
 
+def extract_action(humans_prediction):
+    frame_data = []
+    if len(humans_prediction) > 0:
+        for i in range(0, 18 + 1):
+            # print('i:', i)
+            part = humans_prediction[0].body_parts.get(i)
+            if part is not None:
+                frame_data.append(part.x)
+                frame_data.append(part.y)
+                frame_data.append(part.score)
+            else:
+                frame_data.append(0)
+                frame_data.append(0)
+                frame_data.append(0)
+
+    return frame_data
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='tf-pose-estimation realtime webcam')
     parser.add_argument('--camera', type=int, default=0)
@@ -93,30 +111,20 @@ if __name__ == '__main__':
             fps_time = time.time()
             if cv2.waitKey(1) == 27:
                 break
-    
-            frame_data = []
-            if len(humans) > 0:
-                for i in range(0, 18 + 1):
-                    # print('i:', i)
-                    part = humans[0].body_parts.get(i)
-                    if part is not None:
-                        frame_data.append(part.x)
-                        frame_data.append(part.y)
-                        frame_data.append(part.score)
-                    else:
-                        frame_data.append(0)
-                        frame_data.append(0)
-                        frame_data.append(0)
-    
-#            print('frame:', len(frame_data))
+
+            frame_data = extract_action(humans)
+
+
+            #            print('frame:', len(frame_data))
             if len(frame_data)> 0:
                 action_df = action_df.append([frame_data])
     
             # logger.debug('finished+')
 
 #        print('frame:', frame_data)
-    
-        action_df.to_csv(file+'.csv', index=None, header=None)
+        datafile = filename.replace('training', 'training-csv')
+
+        action_df.to_csv(datafile+'.csv', index=None, header=None)
 
     cv2.destroyAllWindows()
 

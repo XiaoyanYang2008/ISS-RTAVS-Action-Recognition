@@ -19,11 +19,15 @@ def training():
     sys.setrecursionlimit(40000)
     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 
-    IMG_HEIGHT, IMG_WIDTH = 5, 57  # 5, 57
+    ACTION_ROWS, ACTION_WIDTH = 5, 38  # 5, 57
 
-    print(IMG_HEIGHT, IMG_WIDTH)
+    print(ACTION_ROWS, ACTION_WIDTH)
+    classes, _ = build_classes()
 
-    model = create_model(IMG_HEIGHT, IMG_WIDTH)
+    drop_score_i = [a * 3 - 1 for a in range(1, 20)]
+
+    model = create_model(ACTION_ROWS, ACTION_WIDTH, len(classes))
+    print('len(classes):',classes)
 
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     model.summary()
@@ -43,7 +47,6 @@ def training():
 
     files = loadDataFiles()
     datastore = []
-    classes = build_classes()
 
     # build datastore from csv files
     for f in files:
@@ -52,17 +55,19 @@ def training():
         datastore.append([f, cls, df])
 
 
-
-    # model.fit(train_x, train_y, epochs=50, callbacks=callbacks_list)
-
-    # train 50 ecpochs
+    # train 50 ecpochs, resampling training data.
     for j in range(50): # change to low single digits to see underfit error.
         # train 1 epoch
         datas = []
         ys = []
         for d in datastore:
             for i in range(10):
-                data = np.reshape(sample_data(d[2], 20, 5), (IMG_HEIGHT, IMG_WIDTH, 1))
+                data = sample_data(d[2], 20, 5)
+                # print('before delete:',data.shape)
+                data = np.delete(np.array(data), drop_score_i, axis=1)
+                data = np.reshape(data, (ACTION_ROWS, ACTION_WIDTH, 1))
+                # print('after delete:',data.shape)
+
                 datas.append(data)
                 cls = d[1]
                 ys.append(classes.get(cls))
@@ -78,7 +83,10 @@ def training():
     for d in datastore:
 
         for i in range(1):
-            data = np.reshape(sample_data(d[2], 20, 5), (IMG_HEIGHT, IMG_WIDTH, 1))
+            # data = np.reshape(sample_data(d[2], 20, 5), (ACTION_ROWS, ACTION_WIDTH, 1))
+            data = sample_data(d[2], 20, 5)
+            data = np.delete(np.array(data), drop_score_i, axis=1)
+            data = np.reshape(data, (ACTION_ROWS, ACTION_WIDTH, 1))
             tests.append(data)
             cls = d[1]
             yts.append(classes.get(cls))
@@ -95,7 +103,7 @@ def training():
 
 
 
-def create_model(IMG_HEIGHT, IMG_WIDTH):
+def create_model(IMG_HEIGHT, IMG_WIDTH, number_class):
     return Sequential([
         Conv2D(16, 3, padding='same', activation='relu', input_shape=(IMG_HEIGHT, IMG_WIDTH, 1)),
         # MaxPooling2D(),
@@ -105,7 +113,7 @@ def create_model(IMG_HEIGHT, IMG_WIDTH):
         # MaxPooling2D(),
         Flatten(),
         Dense(512, activation='relu'),
-        Dense(4, activation='softmax')
+        Dense(number_class, activation='softmax')
     ])
 
 
@@ -117,6 +125,7 @@ def build_classes():
     files = loadDataFiles()
     cs =[]
     classes = {}
+    classes_idx = {}
     i = 0
 
     for f in files:
@@ -128,13 +137,14 @@ def build_classes():
     for cls in cs:
         if cls not in classes:
             classes[cls] = i
+            classes_idx[i] = cls
             i = i + 1
-    return classes
+    return classes, classes_idx
 
 def test_sampling():
     files = loadDataFiles()
     datastore = []
-    classes = build_classes()
+    # classes = build_classes()
 
     for f in files:
         df = pd.read_csv(f, header=None)
@@ -160,8 +170,10 @@ def sample_data(df, rand_width, rows):
     return df.loc[rs, :].to_numpy()
 
 def test():
-    classes = build_classes()
-    print(classes.get('shutdown'))
+    classes, classes_idx = build_classes()
+    print(classes.get('Shutdown'))
+    print(classes.get(1))
+
 
 def main():
     training()
