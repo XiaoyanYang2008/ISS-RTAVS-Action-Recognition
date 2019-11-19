@@ -85,8 +85,8 @@ if __name__ == '__main__':
         logger.info('cam image=%dx%d' % (image.shape[1], image.shape[0]))
     
         screen_width, screen_height = pyautogui.size()
-        xq = deque(maxlen=4)
-        yq = deque(maxlen=4)
+        # xq = deque(maxlen=4)
+        # yq = deque(maxlen=4)
     
         action_df = pd.DataFrame()
         while True:

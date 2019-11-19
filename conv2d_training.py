@@ -56,7 +56,7 @@ def training():
 
 
     # train 50 ecpochs, resampling training data.
-    for j in range(50): # change to low single digits to see underfit error.
+    for j in range(500): # change to low single digits to see underfit error.
         # train 1 epoch
         datas = []
         ys = []
