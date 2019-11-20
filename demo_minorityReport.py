@@ -124,7 +124,7 @@ if __name__ == '__main__':
                 # by experiment.
                 neck_y = data[4, 1 * 3 + 1]
                 # print('neck_y:',neck_y)
-                if (data[4, 4 * 3 + 1]) > neck_y:
+                if (data[4, 4 * 3 + 1]) < neck_y:
                     pyautogui.vscroll(1)
                 else:
                     pyautogui.vscroll(-1)
