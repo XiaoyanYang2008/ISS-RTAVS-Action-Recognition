@@ -1,5 +1,5 @@
 # List of Actions:
 
-![Righthandnext]()
+![Righthandnext](images/MR-swipeRight.gif)
 Righthandnext
 
