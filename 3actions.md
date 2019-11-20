@@ -11,7 +11,6 @@ Action: Mousemoving
 
 
 ![MR-Looking.gif](images/MR-Looking.gif)
-
 Action: Looking
 
 
